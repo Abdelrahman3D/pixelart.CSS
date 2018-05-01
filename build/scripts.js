@@ -43,7 +43,7 @@ async function buildScripts () {
   // pass the desired output config
   const { code } = await bundle.generate({
     format: 'umd',
-    name: 'pixelart',
+    name: 'Pixelart',
     banner: script.banner
   });
 
