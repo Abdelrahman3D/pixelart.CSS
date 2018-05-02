@@ -3,6 +3,20 @@
     * (c) 2018 Baianat
     * @license MIT
     */
+/**
+ * Utilities
+ */
+function css(element, styles) {
+  Object.entries(styles).forEach(function (pair) {
+    element.style[pair[0]] = pair[1];
+  });
+}
+function camelCaseToDash(myStr) {
+  return myStr.replace(/([A-Z])/g, function (g) {
+    return '-' + g[0].toLowerCase();
+  });
+}
+
 var classCallCheck = function (instance, Constructor) {
   if (!(instance instanceof Constructor)) {
     throw new TypeError("Cannot call a class as a function");
@@ -27,81 +41,105 @@ var createClass = function () {
   };
 }();
 
-/**
- * Utilities
- */
-function select(element) {
-  if (typeof element === 'string') {
-    return document.querySelector(element);
-  }
-  return element;
-}
-
 var Pixelart = function () {
-  function Pixelart(el, settings) {
+  function Pixelart() {
     classCallCheck(this, Pixelart);
 
-    this.el = select(el);
-    this.settings = Object.assign({}, Pixelart.defaults, settings);
     this._init();
   }
 
   createClass(Pixelart, [{
     key: '_init',
     value: function _init() {
+      this.canvas = document.createElement('canvas');
+      this.ctx = this.canvas.getContext('2d');
+      this.width = 0;
+      this.height = 0;
+    }
+  }, {
+    key: 'generateStyle',
+    value: function generateStyle(data) {
       var _this = this;
 
-      this.canvas = document.createElement('canvas');
-      this.div = document.createElement('div');
-      this.div.style.width = '10px';
-      this.div.style.height = '10px';
-      this.ctx = this.canvas.getContext('2d');
-      document.body.appendChild(this.canvas);
-      document.body.appendChild(this.div);
-      this.el.addEventListener('change', function () {
-        _this.handleImage(_this.el.files[0]);
+      return new Promise(function (resolve, reject) {
+        var imgData = data || _this.ctx.getImageData(0, 0, _this.width, _this.height).data;
+        var boxShadow = '';
+        var pixelSize = _this.settings.pixelSize;
+        for (var index = 0; index < imgData.length; index += 4) {
+          if (imgData[index + 3] === 0) continue;
+          var xOffset = Math.floor(index / 4 % _this.width) * pixelSize;
+          var yOffset = Math.floor(index / 4 / _this.width) * pixelSize;
+          var _red$green$blue$alpha = {
+            red: imgData[index],
+            green: imgData[index + 1],
+            blue: imgData[index + 2],
+            alpha: imgData[index + 3]
+          },
+              red = _red$green$blue$alpha.red,
+              green = _red$green$blue$alpha.green,
+              blue = _red$green$blue$alpha.blue,
+              alpha = _red$green$blue$alpha.alpha;
+
+          boxShadow += xOffset + 'px ' + yOffset + 'px rgba(' + red + ', ' + green + ', ' + blue + ', ' + alpha + '),\n    ';
+        }        var style = {
+          width: pixelSize + 0.5 + 'px',
+          height: pixelSize + 0.5 + 'px',
+          boxShadow: boxShadow.trim().slice(0, -1)
+        };
+        resolve(style);
       });
     }
   }, {
-    key: 'handleCSS',
-    value: function handleCSS() {
-      var imgData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height).data;
-      var boxShadow = '';
-      var pixelSize = 10;
-      for (var index = 0; index < imgData.length; index += 4) {
-        if (imgData[index + 3] === 0) continue;
-        console.log(Math.floor(index / 4 / this.canvas.width), Math.floor(index / 4 % this.canvas.width));
-        boxShadow += '\n        ' + Math.floor(index / 4 % this.canvas.width) * pixelSize + 'px \n        ' + Math.floor(index / 4 / this.canvas.width) * pixelSize + 'px \n        rgba(\n          ' + imgData[index] + ',\n          ' + imgData[index + 1] + ',\n          ' + imgData[index + 2] + ',\n          ' + imgData[index + 3] + '\n        ),';
-      }
-      boxShadow = boxShadow.slice(0, -1);
-      this.div.style.boxShadow = boxShadow;
-    }
-  }, {
-    key: 'handleImage',
-    value: function handleImage(file) {
+    key: 'convertImage',
+    value: function convertImage(file, settings) {
       var _this2 = this;
 
-      // eslint-disable-next-line
-      var reader = new FileReader();
-      reader.onload = function (event) {
+      return new Promise(function (resolve, reject) {
+        _this2.settings = Object.assign({}, Pixelart.defaults, settings);
         // eslint-disable-next-line
+        var reader = new FileReader();
         var img = new Image();
-        img.onload = function () {
-          _this2.canvas.width = img.width;
-          _this2.canvas.height = img.height;
-          _this2.ctx.drawImage(img, 0, 0);
-          _this2.handleCSS();
+
+        reader.onload = function (event) {
+          img.onload = function () {
+            _this2.canvas.width = _this2.width = img.width;
+            _this2.canvas.height = _this2.height = img.height;
+            if (_this2.width * _this2.height > _this2.settings.maxImagePixels) {
+              console.log('Max pixels count (' + _this2.settings.maxImagePixels + ')');
+              reject();
+            }
+            _this2.ctx.drawImage(img, 0, 0);
+            _this2.generateStyle().then(function (style) {
+              return resolve(style);
+            });
+          };
+          img.src = event.target.result;
         };
-        img.src = event.target.result;
-      };
-      reader.readAsDataURL(file);
+        reader.readAsDataURL(file);
+      });
+    }
+  }, {
+    key: 'applyStyle',
+    value: function applyStyle(el, style) {
+      css(el, style);
+    }
+  }, {
+    key: 'parseCSS',
+    value: function parseCSS(el, style) {
+      var className = el.classList.item(0);
+      var css$$1 = '';
+      Object.entries(style).forEach(function (pair) {
+        css$$1 += '  ' + camelCaseToDash(pair[0]) + ': ' + camelCaseToDash(pair[1]) + '\n';
+      });
+      return '.' + className + ' { \n' + css$$1 + ' }';
     }
   }]);
   return Pixelart;
 }();
 
 Pixelart.defaults = {
-  pixelSize: 10
+  pixelSize: 10,
+  maxImagePixels: 10000
 };
 
 export default Pixelart;

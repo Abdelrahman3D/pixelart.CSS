@@ -6,11 +6,63 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
 </head>
 <body>
-  
-  <input type="file" id="file">
+
+  <style>
+    body {
+      background: #f0f0f0;
+    }
+    .🌍 {
+      display: grid;
+      grid-template-areas: 
+                        "📁 📁 📁"
+                        "🛸 🛸‍ 👨‍💻"
+    }
+    .📁 {
+      grid-area: 📁;
+      color: #c1c1c1;
+      margin: 20px;
+    }
+    .👨‍💻 {
+      grid-area: 👨‍💻;
+      height: 400px;
+      overflow-y: scroll;
+      color: #121212;
+      background-color: white;
+      padding: 20px;
+      border-radius: 4px;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+    .🛸 {
+      grid-area: 🛸;
+    }
+  </style>
+
+  <main class="🌍">
+    <div class="📦">
+      <div class="🛸" data-pix-sprite></div>
+    </div>
+    <pre class="👨‍💻"><code data-pix-code></code></pre>
+    <form action="" class="📁">
+      <input type="file" data-pix-file>
+      <label for="">Image must have 10000 pixels max</label>
+    </form>
+  </main>
+
   <script src="dist/pixelart.js"></script>
   <script>
-    new Pixelart('#file');
+    const pixelart = new Pixelart();
+    const fileInput = document.querySelector('[data-pix-file]');
+    const sprite = document.querySelector('[data-pix-sprite]');
+    const code = document.querySelector('[data-pix-code]');
+
+    fileInput.addEventListener('change', (event) => {
+      pixelart.convertImage(event.target.files[0])
+      .then(style => {
+        code.innerText = pixelart.parseCSS(sprite, style);
+        pixelart.applyStyle(sprite, style);
+      });
+      fileInput.values = '';
+    });
   </script>
 </body>
 </html>
